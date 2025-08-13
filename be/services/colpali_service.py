@@ -4,59 +4,54 @@ import time
 import tempfile
 import glob
 import shutil
+import logging
 from typing import List, Dict, Any, Callable, Optional
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
-from tqdm import tqdm
 from PIL import Image
-from pdf import convert_pdf_to_images
-from qdrant import create_qdrant_collection, upsert_to_qdrant
-from colpali_engine.models import ColPali, ColPaliProcessor
 
+from be.core.models import colpali_manager
+from be.core.database import qdrant_manager
+from be.utils.pdf import convert_pdf_to_images
+from be.utils.qdrant import upsert_to_qdrant
+from be.config import ColPaliConfig, settings
+
+logger = logging.getLogger(__name__)
 
 class ColPaliRAGService:
     def __init__(self):
-        self.model_name = "vidore/colpali-v1.3"
-        self.processor_name = "vidore/colpaligemma2-3b-pt-448-base"
-        self.collection_name = "colpali-documents"
-        self.batch_size = 4
-        
-        # 모델 초기화
-        self._initialize_models()
-        self._initialize_qdrant()
+        self.collection_name = ColPaliConfig.COLLECTION_NAME
+        self.batch_size = settings.batch_size
+        self.model_manager = colpali_manager
+        self.db_manager = qdrant_manager
+        if not self.model_manager.is_initialized:
+            self.model_manager.initialize() 
+        if not self.db_manager.is_initialized:
+            self.db_manager.initialize()
+    @property
+    def colpali_model(self):
+        """ColPali 모델 반환"""
+        return self.model_manager.get_model()
     
-    def _initialize_models(self):
-        """ColPali 모델과 프로세서 초기화"""
-        print("ColPali 모델 로딩 중...")
-        self.colpali_model = ColPali.from_pretrained(
-            self.model_name,
-            torch_dtype=torch.bfloat16,
-            device_map="mps",  # GPU는 "cuda:0", CPU는 "cpu", Apple Silicon은 "mps"
-        )
-        self.colpali_processor = ColPaliProcessor.from_pretrained(
-            self.processor_name
-        )
-        torch.cuda.empty_cache()
-        print("모델 로딩 완료")
+    @property
+    def colpali_processor(self):
+        """ColPali 프로세서 반환"""
+        return self.model_manager.get_processor()
     
-    def _initialize_qdrant(self):
-        """Qdrant 클라이언트 초기화"""
-        self.qdrant_client = QdrantClient(":memory:")
-        try:
-            create_qdrant_collection(self.qdrant_client, self.collection_name)
-            print("Qdrant 컬렉션 생성 완료")
-        except Exception as e:
-            print(f"Qdrant 컬렉션 생성 중 오류: {e}")
-            raise
+    @property
+    def qdrant_client(self):
+        """Qdrant 클라이언트 반환"""
+        return self.db_manager.get_client()
     
-    def process_pdf(self, pdf_file_path: str, progress_callback: Optional[Callable] = None, output_dir: str = "./temp_images") -> Dict[str, Any]:
+    def process_pdf(self, pdf_file_path: str, progress_callback: Optional[Callable] = None, output_dir: str = None) -> Dict[str, Any]:
         """PDF 파일을 처리하고 인덱싱"""
         try:
-            # 웹에서 접근 가능한 디렉토리에 이미지 저장
+            if output_dir is None:
+                output_dir = settings.output_dir
+            
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
             
-            # PDF 파일명을 기반으로 서브디렉토리 생성
             pdf_name = os.path.basename(pdf_file_path).replace('.pdf', '')
             pdf_image_dir = os.path.join(output_dir, pdf_name)
             if not os.path.exists(pdf_image_dir):
@@ -80,7 +75,6 @@ class ColPaliRAGService:
                 batch_files = image_files[i : i + self.batch_size]
                 images = [Image.open(img_path) for img_path in batch_files]
                 
-                # 진행상황 업데이트 - 임베딩 생성 중
                 if progress_callback:
                     progress_callback({
                         "status": "processing",
@@ -110,7 +104,6 @@ class ColPaliRAGService:
                         },
                     ))
                 
-                # 진행상황 업데이트 - 벡터 저장 중
                 if progress_callback:
                     progress_callback({
                         "status": "storing",
@@ -124,7 +117,6 @@ class ColPaliRAGService:
                     upsert_to_qdrant(points, self.qdrant_client, self.collection_name)
                     total_indexed += len(points)
                     
-                    # 진행상황 업데이트 - 배치 완료
                     current_page = min(i + len(batch_files), total_pages)
                     if progress_callback:
                         progress_callback({
@@ -146,7 +138,6 @@ class ColPaliRAGService:
                         })
                     continue
             
-            # 완료 알림
             if progress_callback:
                 progress_callback({
                     "status": "completed",
@@ -177,7 +168,7 @@ class ColPaliRAGService:
                 "message": f"PDF 처리 중 오류: {str(e)}"
             }
     
-    def query(self, query_text: str, limit: int = 5) -> Dict[str, Any]:
+    def query(self, query_text: str, limit: int = None) -> Dict[str, Any]:
         """텍스트 쿼리로 검색 수행"""
         try:
             start_time = time.time()
@@ -190,11 +181,14 @@ class ColPaliRAGService:
             
             multivector_query = query_embeddings[0].cpu().float().numpy().tolist()
             
+            if limit is None:
+                limit = ColPaliConfig.DEFAULT_SEARCH_LIMIT
+            
             search_result = self.qdrant_client.query_points(
                 collection_name=self.collection_name,
                 query=multivector_query,
                 limit=limit,
-                timeout=100,
+                timeout=ColPaliConfig.SEARCH_TIMEOUT,
                 search_params=models.SearchParams(
                     quantization=models.QuantizationSearchParams(
                         ignore=False,
@@ -245,9 +239,12 @@ class ColPaliRAGService:
                 "message": f"상태 확인 중 오류: {str(e)}"
             }
     
-    def get_pdf_list(self, data_dir: str = "./data") -> Dict[str, Any]:
+    def get_pdf_list(self, data_dir: str = None) -> Dict[str, Any]:
         """데이터 폴더에서 PDF 파일 목록 반환"""
         try:
+            if data_dir is None:
+                data_dir = settings.data_dir
+                
             if not os.path.exists(data_dir):
                 return {
                     "success": False,
@@ -280,7 +277,7 @@ class ColPaliRAGService:
                 "message": f"PDF 목록 조회 중 오류: {str(e)}"
             }
     
-    def get_pdf_preview(self, pdf_path: str, output_dir: str = "./temp_images") -> Dict[str, Any]:
+    def get_pdf_preview(self, pdf_path: str, output_dir: str = None) -> Dict[str, Any]:
         """PDF의 첫 페이지 미리보기 이미지 생성"""
         try:
             if not os.path.exists(pdf_path):
@@ -289,7 +286,10 @@ class ColPaliRAGService:
                     "message": "PDF 파일이 존재하지 않습니다."
                 }
             
-            # 출력 디렉토리 생성
+            # 출력 디렉토리 설정 및 생성
+            if output_dir is None:
+                output_dir = settings.output_dir
+                
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
             
@@ -306,7 +306,6 @@ class ColPaliRAGService:
                     "pdf_name": os.path.basename(pdf_path)
                 }
             
-            # 미리보기 이미지 생성
             with tempfile.TemporaryDirectory() as temp_dir:
                 image_files = convert_pdf_to_images(pdf_path, temp_dir, max_pages=1)
                 

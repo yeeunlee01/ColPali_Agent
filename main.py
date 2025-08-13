@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from be.services.colpali_service import ColPaliRAGService
-from fe.ui import HTML_TEMPLATE
+from fe.html import HTML_TEMPLATE
 
 app = FastAPI(title="ColPali RAG API", version="1.0.0")
 

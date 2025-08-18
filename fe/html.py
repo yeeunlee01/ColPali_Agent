@@ -28,6 +28,7 @@ HTML_TEMPLATE = """
             transform: rotate(180deg);
         }
         .reference-item {
+            position: relative;
             transition: all 0.3s ease;
             cursor: pointer;
             border: 2px solid transparent;
@@ -39,6 +40,39 @@ HTML_TEMPLATE = """
         .reference-item.active {
             border-color: #1d4ed8;
             background-color: #eff6ff;
+        }
+        .reference-item.indexed {
+            border-color: #16a34a !important;
+            background-color: #f0fdf4 !important;
+        }
+        .reference-item.indexed.active {
+            border-color: #15803d !important;
+            background-color: #dcfce7 !important;
+        }
+        .checkbox-indicator {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #d1d5db;
+            border-radius: 50%;
+            background-color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        .reference-item.active .checkbox-indicator {
+            border-color: #1d4ed8;
+            background-color: #1d4ed8;
+        }
+        .reference-item.active .checkbox-indicator::after {
+            content: '✓';
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
         }
         .chat-container {
             height: calc(100vh - 40px);
@@ -247,7 +281,7 @@ HTML_TEMPLATE = """
         const loading = document.getElementById('loading');
 
         let selectedPdfPath = null;
-        let isIndexed = false;
+        let indexedPdfs = new Set();
 
         // 사이드바 토글
         sidebarToggle.addEventListener('click', () => {
@@ -275,9 +309,25 @@ HTML_TEMPLATE = """
             const message = messageInput.value.trim();
             if (!message) return;
 
-            if (!isIndexed) {
-                addMessage('system', 'PDF를 먼저 인덱싱해주세요.');
+            if (!selectedPdfPath) {
+                addMessage('system', 'PDF를 먼저 선택해주세요.');
                 return;
+            }
+
+            // 선택된 PDF가 인덱싱되지 않은 경우 자동 인덱싱
+            if (!indexedPdfs.has(selectedPdfPath)) {
+                addMessage('system', '선택된 PDF를 인덱싱 중입니다. 잠시만 기다려주세요...');
+                
+                const indexButton = document.querySelector(`[data-pdf-path="${selectedPdfPath}"] .index-btn`);
+                await indexPdf(selectedPdfPath, indexButton);
+                
+                // 인덱싱이 완료되었는지 확인
+                if (!indexedPdfs.has(selectedPdfPath)) {
+                    addMessage('system', '인덱싱에 실패했습니다. 다시 시도해주세요.');
+                    return;
+                }
+                
+                addMessage('system', '인덱싱이 완료되었습니다. 질문을 처리합니다...');
             }
 
             // 사용자 메시지 추가
@@ -455,6 +505,7 @@ HTML_TEMPLATE = """
                     return `
                         <div class="reference-item bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3" 
                              data-pdf-path="${pdf.path}" data-pdf-name="${pdf.name}">
+                            <div class="checkbox-indicator"></div>
                             <div class="relative">
                                 ${previewImg}
                                 <div class="no-preview w-full h-24 bg-gray-200 rounded flex items-center justify-center ${previewResult.success ? 'hidden' : ''}">
@@ -474,6 +525,7 @@ HTML_TEMPLATE = """
                     return `
                         <div class="reference-item bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3" 
                              data-pdf-path="${pdf.path}" data-pdf-name="${pdf.name}">
+                            <div class="checkbox-indicator"></div>
                             <div class="w-full h-24 bg-gray-200 rounded flex items-center justify-center">
                                 <i class="fas fa-exclamation-triangle text-gray-400"></i>
                             </div>
@@ -501,11 +553,24 @@ HTML_TEMPLATE = """
             });
 
             document.querySelectorAll('.index-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const item = e.target.closest('.reference-item');
-                    indexPdf(item.getAttribute('data-pdf-path'), btn);
-                });
+                const item = btn.closest('.reference-item');
+                const pdfPath = item.getAttribute('data-pdf-path');
+                
+                // 이미 인덱싱된 PDF인지 확인
+                if (indexedPdfs.has(pdfPath)) {
+                    btn.textContent = '인덱싱 완료';
+                    btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    btn.classList.add('bg-green-600', 'cursor-not-allowed');
+                    btn.disabled = true;
+                    item.classList.add('indexed');
+                    item.style.borderColor = '#16a34a';
+                    item.style.backgroundColor = '#f0fdf4';
+                } else {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        indexPdf(pdfPath, btn);
+                    });
+                }
             });
         }
 
@@ -524,74 +589,88 @@ HTML_TEMPLATE = """
             
             progressSection.classList.remove('hidden');
             
-            try {
-                const eventSource = new EventSource(`/index-pdf-stream?pdf_path=${encodeURIComponent(pdfPath)}`);
-                
-                eventSource.onmessage = function(event) {
-                    try {
-                        const data = JSON.parse(event.data);
-                        
-                        if (data.status === 'heartbeat') {
-                            return;
-                        }
-                        
-                        if (data.status === 'done') {
-                            const result = data.result;
-                            if (result.success) {
-                                updateProgress({
-                                    message: `완료: ${result.indexed_pages}페이지`,
-                                    percentage: 100,
-                                    current_page: result.total_pages,
-                                    total_pages: result.total_pages
-                                });
-                                showStatus(`인덱싱 완료: ${result.indexed_pages}페이지`, 'success');
-                                button.textContent = '완료';
-                                button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                                button.classList.add('bg-green-600');
-                                isIndexed = true;
-                                addMessage('system', `${result.indexed_pages}페이지가 인덱싱되었습니다. 이제 질문을 해보세요!`);
-                            } else {
-                                showStatus(`인덱싱 실패: ${result.message}`, 'error');
-                                button.textContent = originalText;
+            return new Promise((resolve, reject) => {
+                try {
+                    const eventSource = new EventSource(`/index-pdf-stream?pdf_path=${encodeURIComponent(pdfPath)}`);
+                    
+                    eventSource.onmessage = function(event) {
+                        try {
+                            const data = JSON.parse(event.data);
+                            
+                            if (data.status === 'heartbeat') {
+                                return;
                             }
-                            eventSource.close();
-                            hideProgressAfterDelay();
                             
-                        } else if (data.status === 'error') {
-                            showStatus(`오류: ${data.message}`, 'error');
-                            button.textContent = originalText;
-                            eventSource.close();
-                            hideProgressAfterDelay();
+                            if (data.status === 'done') {
+                                const result = data.result;
+                                if (result.success) {
+                                    updateProgress({
+                                        message: `완료: ${result.indexed_pages}페이지`,
+                                        percentage: 100,
+                                        current_page: result.total_pages,
+                                        total_pages: result.total_pages
+                                    });
+                                    showStatus(`인덱싱 완료: ${result.indexed_pages}페이지`, 'success');
+                                    button.textContent = '인덱싱 완료';
+                                    button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                                    button.classList.add('bg-green-600', 'cursor-not-allowed');
+                                    button.disabled = true;
+                                    indexedPdfs.add(pdfPath);
+                                    
+                                    // PDF 아이템에도 완료 표시 추가
+                                    const pdfItem = button.closest('.reference-item');
+                                    pdfItem.classList.add('indexed');
+                                    pdfItem.style.borderColor = '#16a34a';
+                                    pdfItem.style.backgroundColor = '#f0fdf4';
+                                    
+                                    resolve(result);
+                                } else {
+                                    showStatus(`인덱싱 실패: ${result.message}`, 'error');
+                                    button.textContent = originalText;
+                                    reject(new Error(result.message));
+                                }
+                                eventSource.close();
+                                hideProgressAfterDelay();
+                                
+                            } else if (data.status === 'error') {
+                                showStatus(`오류: ${data.message}`, 'error');
+                                button.textContent = originalText;
+                                eventSource.close();
+                                hideProgressAfterDelay();
+                                reject(new Error(data.message));
+                                
+                            } else {
+                                updateProgress({
+                                    message: data.message || '처리 중...',
+                                    percentage: data.percentage || 0,
+                                    current_page: data.current_page || 0,
+                                    total_pages: data.total_pages || 0
+                                });
+                            }
                             
-                        } else {
-                            updateProgress({
-                                message: data.message || '처리 중...',
-                                percentage: data.percentage || 0,
-                                current_page: data.current_page || 0,
-                                total_pages: data.total_pages || 0
-                            });
+                        } catch (error) {
+                            console.error('진행상황 파싱 오류:', error);
+                            reject(error);
                         }
-                        
-                    } catch (error) {
-                        console.error('진행상황 파싱 오류:', error);
-                    }
-                };
-                
-                eventSource.onerror = function(event) {
-                    console.error('EventSource 오류:', event);
-                    showStatus('인덱싱 중 연결 오류가 발생했습니다.', 'error');
-                    eventSource.close();
+                    };
+                    
+                    eventSource.onerror = function(event) {
+                        console.error('EventSource 오류:', event);
+                        showStatus('인덱싱 중 연결 오류가 발생했습니다.', 'error');
+                        eventSource.close();
+                        button.textContent = originalText;
+                        hideProgressAfterDelay();
+                        reject(new Error('인덱싱 중 연결 오류가 발생했습니다.'));
+                    };
+                    
+                } catch (error) {
+                    showStatus(`인덱싱 중 오류: ${error.message}`, 'error');
                     button.textContent = originalText;
                     hideProgressAfterDelay();
-                };
-                
-            } catch (error) {
-                showStatus(`인덱싱 중 오류: ${error.message}`, 'error');
-                button.textContent = originalText;
-                hideProgressAfterDelay();
-            } finally {
-                button.disabled = false;
-            }
+                    button.disabled = false;
+                    reject(error);
+                }
+            });
         }
 
         function updateProgress(data) {

@@ -1,4 +1,3 @@
-import os
 import torch
 import logging
 from typing import Optional, Dict, Any
@@ -6,7 +5,7 @@ from contextlib import contextmanager
 
 from colpali_engine.models import ColPali, ColPaliProcessor
 from langchain_openai import AzureChatOpenAI
-from be.config import ColPaliConfig, settings
+from be.config import ColPaliConfig, azure_config
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,7 @@ class ColPaliModelManager:
         self.model_name = ColPaliConfig.MODEL_NAME
         self.processor_name = ColPaliConfig.PROCESSOR_NAME
         self.torch_dtype = ColPaliConfig.TORCH_DTYPE
-        self.device = settings.device
+        self.device = ColPaliConfig.get_device()
         
         self._initialized: bool = False
         self._loading: bool = False
@@ -231,17 +230,18 @@ class AzureChatOpenAIManager:
         self._llm: Optional[AzureChatOpenAI] = None
         self._initialized: bool = False
         
-        self.azure_deployment = os.getenv("OPENAI_DEPLOYMENT")
-        self.azure_endpoint = os.getenv("OPENAI_ENDPOINT")
-        self.api_version = os.getenv("OPENAI_API_VERSION", "2024-02-15-preview")
-        self.api_key = os.getenv("OPENAI_API_KEY")
-        self.model = os.getenv("OPENAI_MODEL", "gpt-4")
+        self.azure_deployment = azure_config.azure_deployment
+        self.azure_endpoint = azure_config.azure_endpoint
+        self.api_version = azure_config.azure_api_version
+        self.api_key = azure_config.azure_api_key
+        self.model = azure_config.azure_model
         
-        self.temperature = 0
-        self.max_tokens = 500
-        self.n = 1
-        self.verbose = True
-        self.streaming = False\
+        self.temperature = azure_config.temperature
+        self.max_tokens = azure_config.max_tokens
+        self.n = azure_config.n
+        self.verbose = azure_config.verbose
+        self.streaming = azure_config.streaming
+
     
     @property
     def is_initialized(self) -> bool:
@@ -270,11 +270,11 @@ class AzureChatOpenAIManager:
             if not all([self.azure_deployment, self.azure_endpoint, self.api_key]):
                 missing = []
                 if not self.azure_deployment:
-                    missing.append("OPENAI_DEPLOYMENT")
+                    missing.append("AZURE_DEPLOYMENT")
                 if not self.azure_endpoint:
-                    missing.append("OPENAI_ENDPOINT")
+                    missing.append("AZURE_ENDPOINT")
                 if not self.api_key:
-                    missing.append("OPENAI_API_KEY")
+                    missing.append("AZURE_API_KEY")
                 
                 raise ValueError(f"필수 환경변수가 설정되지 않았습니다: {', '.join(missing)}")
             
@@ -386,6 +386,7 @@ class AzureChatOpenAIManager:
         Returns:
             Dict: 설정 정보
         """
+
         return {
             "initialized": self.is_initialized,
             "azure_deployment": self.azure_deployment,
@@ -433,6 +434,4 @@ class AzureChatOpenAIManager:
         self._cleanup()
         logger.info("Azure ChatOpenAI 언로드 완료")
 
-
-# 전역 인스턴스
 azure_openai_manager = AzureChatOpenAIManager()

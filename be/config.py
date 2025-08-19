@@ -1,23 +1,19 @@
 import os
 import torch
-from typing import Optional
+from dotenv import load_dotenv
 
+# .env 파일 로드
+load_dotenv()
 
 class ColPaliConfig:
     """ColPali 모델 및 서비스 설정"""
     
-    # 모델 설정
     MODEL_NAME = "vidore/colpali-v1.3"
     PROCESSOR_NAME = "vidore/colpaligemma2-3b-pt-448-base"
-    
-    # Qdrant 설정
     COLLECTION_NAME = "colpali-documents"
     QDRANT_URL = ":memory:"  # 메모리 DB 사용, 실제 배포시에는 외부 URL 사용
-    
-    # 처리 설정
     BATCH_SIZE = 4
     
-    # 디바이스 설정 (자동 감지)
     @staticmethod
     def get_device() -> str:
         """사용 가능한 최적의 디바이스 반환"""
@@ -28,16 +24,31 @@ class ColPaliConfig:
         else:
             return "cpu"
     
-    # 파일 경로 설정
     DEFAULT_DATA_DIR = "./data"
     DEFAULT_OUTPUT_DIR = "./temp_images"
     
-    # 검색 설정
     DEFAULT_SEARCH_LIMIT = 5
     SEARCH_TIMEOUT = 100
     
-    # 처리 설정
     TORCH_DTYPE = torch.bfloat16
+
+
+class AzureConfig:
+    """Azure OpenAI 설정"""
+    
+    def __init__(self):
+        self.azure_endpoint = os.getenv("AZURE_ENDPOINT")
+        self.azure_api_version = os.getenv("AZURE_API_VERSION", "2024-12-01-preview")
+        self.azure_api_key = os.getenv("AZURE_API_KEY")
+        self.azure_model = os.getenv("AZURE_MODEL", "gpt-4o")
+        self.azure_deployment = os.getenv("AZURE_DEPLOYMENT")
+        self.n = 1
+        self.temperature = 0
+        self.max_tokens = 10000
+        self.streaming = False
+        self.verbose = True
+
+azure_config = AzureConfig()
 
 
 class Settings:
@@ -50,6 +61,4 @@ class Settings:
         self.batch_size = int(os.getenv("COLPALI_BATCH_SIZE", ColPaliConfig.BATCH_SIZE))
         self.device = os.getenv("COLPALI_DEVICE", ColPaliConfig.get_device())
 
-
-# 전역 설정 인스턴스
 settings = Settings()

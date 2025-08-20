@@ -62,3 +62,11 @@ class Settings:
         self.device = os.getenv("COLPALI_DEVICE", ColPaliConfig.get_device())
 
 settings = Settings()
+
+# API 공통 설정
+class APIConfig:
+    """FastAPI 공통 설정"""
+    TEMP_IMAGE_DIR = "temp_images"
+    STATIC_DIR = "static"
+
+api_config = APIConfig()

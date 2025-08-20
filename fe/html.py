@@ -263,10 +263,15 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
+        alert('JavaScript 로드됨!');
+        console.log('Script started');
+        
         // DOM 요소들
         const sidebar = document.getElementById('sidebar');
         const sidebarToggle = document.getElementById('sidebarToggle');
         const loadPdfBtn = document.getElementById('loadPdfBtn');
+        
+        console.log('loadPdfBtn element:', loadPdfBtn);
         const pdfList = document.getElementById('pdfList');
         const progressSection = document.getElementById('progressSection');
         const progressMessage = document.getElementById('progressMessage');
@@ -282,6 +287,7 @@ HTML_TEMPLATE = """
 
         let selectedPdfPath = null;
         let indexedPdfs = new Set();
+        let isProcessing = false;
 
         // 사이드바 토글
         sidebarToggle.addEventListener('click', () => {
@@ -306,8 +312,12 @@ HTML_TEMPLATE = """
         sendBtn.addEventListener('click', handleSendMessage);
 
         async function handleSendMessage() {
+            if (isProcessing) return; // 이미 처리 중인 경우 무시
+            
             const message = messageInput.value.trim();
             if (!message) return;
+            
+            isProcessing = true; // 처리 시작
 
             if (!selectedPdfPath) {
                 addMessage('system', 'PDF를 먼저 선택해주세요.');
@@ -316,8 +326,6 @@ HTML_TEMPLATE = """
 
             // 선택된 PDF가 인덱싱되지 않은 경우 자동 인덱싱
             if (!indexedPdfs.has(selectedPdfPath)) {
-                addMessage('system', '선택된 PDF를 인덱싱 중입니다. 잠시만 기다려주세요...');
-                
                 const indexButton = document.querySelector(`[data-pdf-path="${selectedPdfPath}"] .index-btn`);
                 await indexPdf(selectedPdfPath, indexButton);
                 
@@ -326,8 +334,6 @@ HTML_TEMPLATE = """
                     addMessage('system', '인덱싱에 실패했습니다. 다시 시도해주세요.');
                     return;
                 }
-                
-                addMessage('system', '인덱싱이 완료되었습니다. 질문을 처리합니다...');
             }
 
             // 사용자 메시지 추가
@@ -340,7 +346,7 @@ HTML_TEMPLATE = """
             showTyping(true);
 
             try {
-                const response = await fetch('/query', {
+                const response = await fetch('/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -351,17 +357,33 @@ HTML_TEMPLATE = """
                 const result = await response.json();
                 showTyping(false);
 
-                if (result.success && result.results.length > 0) {
-                    // 검색 결과와 함께 응답 생성
-                    const references = result.results.map((item, index) => ({
-                        page: item.page_number,
-                        pdf: item.pdf_name,
-                        score: item.score,
-                        image: item.image_path
-                    }));
-
-                    const responseText = `다음 ${result.results.length}개의 관련 문서를 찾았습니다:`;
-                    addMessage('assistant', responseText, references);
+                if (result.success) {
+                    if (result.answer) {
+                        // AI 답변이 있는 경우
+                        addMessage('assistant', result.answer);
+                        
+                        // 검색 결과가 있으면 참조로 표시
+                        if (result.search_results && Array.isArray(result.search_results) && result.search_results.length > 0) {
+                            const references = result.search_results.map((item, index) => ({
+                                page: item.page_number,
+                                pdf: item.pdf_name,
+                                score: item.score,
+                                image: item.image_path
+                            }));
+                            addMessage('assistant', `참고 문서 ${result.search_results.length}개:`, references);
+                        }
+                    } else if (result.search_results && Array.isArray(result.search_results) && result.search_results.length > 0) {
+                        // 답변은 없고 검색 결과만 있는 경우
+                        const references = result.search_results.map((item, index) => ({
+                            page: item.page_number,
+                            pdf: item.pdf_name,
+                            score: item.score,
+                            image: item.image_path
+                        }));
+                        addMessage('assistant', `다음 ${result.search_results.length}개의 관련 문서를 찾았습니다:`, references);
+                    } else {
+                        addMessage('assistant', '관련된 문서를 찾을 수 없습니다. 다른 질문을 시도해보세요.');
+                    }
                 } else {
                     addMessage('assistant', '관련된 문서를 찾을 수 없습니다. 다른 질문을 시도해보세요.');
                 }
@@ -370,7 +392,12 @@ HTML_TEMPLATE = """
                 addMessage('system', `검색 중 오류가 발생했습니다: ${error.message}`);
             } finally {
                 sendBtn.disabled = false;
+                isProcessing = false; // 처리 완료
             }
+        }
+
+        function parseMarkdown(text) {
+            return text.replace(/\n/g, '<br>');
         }
 
         function addMessage(type, content, references = null) {
@@ -437,7 +464,7 @@ HTML_TEMPLATE = """
                         ` : ''}
                         <div class="flex-1 min-w-0">
                             ${type !== 'user' ? `<div class="text-sm ${type === 'user' ? 'text-blue-100' : 'text-gray-600'} mb-1">${sender}</div>` : ''}
-                            <div class="${type === 'user' ? 'text-white' : 'text-gray-800'}">${content}</div>
+                            <div class="${type === 'user' ? 'text-white' : 'text-gray-800'}">${type === 'assistant' ? parseMarkdown(content) : content}</div>
                             ${referencesHtml}
                         </div>
                         ${type === 'user' ? `
@@ -461,9 +488,16 @@ HTML_TEMPLATE = """
         }
 
         // PDF 목록 불러오기
-        loadPdfBtn.addEventListener('click', loadPdfList);
+        console.log('Adding event listener to loadPdfBtn');
+        if (loadPdfBtn) {
+            loadPdfBtn.addEventListener('click', loadPdfList);
+            console.log('Event listener added successfully');
+        } else {
+            console.error('loadPdfBtn element not found!');
+        }
 
         async function loadPdfList() {
+            console.log('loadPdfList function called');
             showLoading(true);
             
             try {
@@ -610,7 +644,7 @@ HTML_TEMPLATE = """
                                         current_page: result.total_pages,
                                         total_pages: result.total_pages
                                     });
-                                    showStatus(`인덱싱 완료: ${result.indexed_pages}페이지`, 'success');
+                                    addMessage('system', `인덱싱이 완료되었습니다. (${result.indexed_pages}페이지)`);
                                     button.textContent = '인덱싱 완료';
                                     button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
                                     button.classList.add('bg-green-600', 'cursor-not-allowed');
@@ -710,6 +744,7 @@ HTML_TEMPLATE = """
 
         // 초기 PDF 목록 로드
         window.addEventListener('load', () => {
+            console.log('Window load event triggered');
             loadPdfList();
         });
     </script>

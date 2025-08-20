@@ -451,7 +451,7 @@ class ColPaliRAGService:
                 "answer": response.content,
                 "context_used": bool(context_texts),
                 "source_pages": page_info,
-                "search_results": search_result["results"],
+                "search_results": search_result.get("results", []),
                 "total_time": end_time - start_time,
                 "search_time": search_result.get("search_time", 0)
             }
@@ -460,5 +460,6 @@ class ColPaliRAGService:
             logger.error(f"채팅 쿼리 처리 중 오류: {e}")
             return {
                 "success": False,
-                "message": f"채팅 쿼리 처리 중 오류: {str(e)}"
+                "message": f"채팅 쿼리 처리 중 오류: {str(e)}",
+                "search_results": []
             }

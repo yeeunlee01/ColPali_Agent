@@ -39,6 +39,12 @@ def get_event_handlers():
                 });
             }
             
+            // 사이드바 토글
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', handleSidebarToggle);
+            }
+            
             // PDF 목록 이벤트 위임
             const pdfList = document.getElementById('pdfList');
             if (pdfList) {
@@ -95,7 +101,38 @@ def get_event_handlers():
             messageInput.value = '';
             
             try {
-                const result = await sendChatQuery(message);
+                // 선택된 PDF가 인덱싱되었는지 확인
+                if (!indexedPdfs.has(selectedPdfPath)) {
+                    addMessage('system', 'PDF를 인덱싱하고 있습니다. 잠시만 기다려주세요...');
+                    
+                    // PDF 인덱싱 실행
+                    const indexResult = await indexPdf(selectedPdfPath);
+                    
+                    if (indexResult.success) {
+                        indexedPdfs.add(selectedPdfPath);
+                        addMessage('system', `인덱싱이 완료되었습니다. (${indexResult.indexed_pages}페이지)`);
+                        
+                        // 버튼 상태 업데이트
+                        const pdfItem = document.querySelector(`[data-pdf-path="${selectedPdfPath}"]`);
+                        if (pdfItem) {
+                            const button = pdfItem.querySelector('.index-btn');
+                            if (button) {
+                                button.textContent = '선택됨';
+                                button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                                button.classList.add('bg-green-600', 'cursor-not-allowed');
+                                button.disabled = true;
+                            }
+                            pdfItem.classList.add('indexed');
+                        }
+                    } else {
+                        addMessage('system', `인덱싱 실패: ${indexResult.message}`);
+                        isProcessing = false;
+                        return;
+                    }
+                }
+                
+                // 채팅 질의 실행
+                const result = await sendChatQuery(message, selectedPdfPath);
                 
                 if (result.success && result.answer) {
                     addMessage('assistant', result.answer);
@@ -106,6 +143,29 @@ def get_event_handlers():
                 addMessage('system', `오류가 발생했습니다: ${error.message}`);
             } finally {
                 isProcessing = false;
+            }
+        }
+        
+        /**
+         * 사이드바 토글 핸들러
+         */
+        function handleSidebarToggle() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const toggleIcon = document.querySelector('#sidebarToggle i');
+            
+            if (sidebar && mainContent && toggleIcon) {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('sidebar-collapsed');
+                
+                // 화살표 방향 변경
+                if (sidebar.classList.contains('collapsed')) {
+                    toggleIcon.classList.remove('fa-chevron-left');
+                    toggleIcon.classList.add('fa-chevron-right');
+                } else {
+                    toggleIcon.classList.remove('fa-chevron-right');
+                    toggleIcon.classList.add('fa-chevron-left');
+                }
             }
         }
         

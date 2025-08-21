@@ -1,4 +1,7 @@
 import os
+# tokenizers 경고 메시지 제거
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware

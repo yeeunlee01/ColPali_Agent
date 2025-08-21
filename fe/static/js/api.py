@@ -39,9 +39,31 @@ def get_api_functions():
         }
         
         /**
+         * PDF 인덱싱
+         */
+        async function indexPdf(pdfPath) {
+            try {
+                const response = await fetch('/index-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        pdf_path: pdfPath
+                    })
+                });
+                
+                return await response.json();
+            } catch (error) {
+                console.error('PDF 인덱싱 실패:', error);
+                return { success: false, message: error.message };
+            }
+        }
+        
+        /**
          * 채팅 질의
          */
-        async function sendChatQuery(query, limit = 3) {
+        async function sendChatQuery(query, pdfPath = null, limit = 3) {
             try {
                 const response = await fetch('/chat', {
                     method: 'POST',
@@ -50,6 +72,7 @@ def get_api_functions():
                     },
                     body: JSON.stringify({ 
                         query: query, 
+                        pdf_path: pdfPath,
                         limit: limit,
                         use_context: true
                     })

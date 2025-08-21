@@ -30,8 +30,8 @@ def get_chat_template():
         </div>
 
         <!-- 메시지 입력 영역 -->
-        <div class="p-4 bg-white border-t border-gray-200">
-            <div class="flex items-end space-x-3">
+        <div class="p-4 bg-white border-t border-gray-200 w-full">
+            <div class="flex items-end space-x-3 w-full">
                 <div class="flex-1 relative">
                     <textarea 
                         id="messageInput" 

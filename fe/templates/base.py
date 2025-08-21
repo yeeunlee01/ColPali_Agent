@@ -21,28 +21,26 @@ def get_base_template(title="ColPali Agent", body_content=""):
 def get_main_layout(sidebar_content="", chat_content=""):
     """메인 레이아웃 구조 반환"""
     return f"""
-    <div class="flex h-screen bg-gray-100">
-        <!-- 사이드바 -->
-        <div id="sidebar" class="w-80 bg-white shadow-lg flex-shrink-0 transition-all duration-300">
-            {sidebar_content}
+    <!-- 사이드바 -->
+    <div id="sidebar" class="fixed left-0 top-0 h-full w-80 bg-white shadow-lg z-10 transition-transform duration-300 flex flex-col">
+        {sidebar_content}
+    </div>
+    
+    <!-- 메인 콘텐츠 -->
+    <div id="mainContent" class="transition-all duration-300 h-screen flex flex-col ml-80">
+        <!-- 헤더 -->
+        <div class="bg-white shadow-sm p-4 flex items-center justify-between w-full">
+            <div class="flex items-center space-x-3">
+                <button id="sidebarToggle" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
+                    <i class="fas fa-chevron-left text-gray-600 transition-transform duration-300"></i>
+                </button>
+                <h1 class="text-xl font-semibold text-gray-800">ColPali Agent</h1>
+            </div>
         </div>
         
-        <!-- 메인 콘텐츠 -->
-        <div class="flex-1 flex flex-col overflow-hidden">
-            <!-- 헤더 -->
-            <div class="bg-white shadow-sm p-4 flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <button id="sidebarToggle" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
-                        <i class="fas fa-bars text-gray-600"></i>
-                    </button>
-                    <h1 class="text-xl font-semibold text-gray-800">ColPali Agent</h1>
-                </div>
-            </div>
-            
-            <!-- 채팅 영역 -->
-            <div class="flex-1 overflow-hidden">
-                {chat_content}
-            </div>
+        <!-- 채팅 영역 -->
+        <div class="flex-1 overflow-hidden w-full">
+            {chat_content}
         </div>
     </div>
     

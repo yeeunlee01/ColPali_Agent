@@ -78,7 +78,8 @@ def get_ui_functions():
                     previewImageHtml = `
                         <img src="/images/${previewResult.image_name}" 
                              alt="${pdfName} 미리보기" 
-                             class="w-full h-40 object-contain bg-white rounded mb-2 border"
+                             class="w-full h-40 object-cover object-top bg-white rounded mb-2 border"
+                             style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges;"
                              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                         <div style="display: none;" class="w-full h-40 bg-gray-100 rounded mb-2 flex items-center justify-center">
                             <i class="fas fa-file-pdf text-gray-400 text-2xl"></i>
@@ -97,7 +98,7 @@ def get_ui_functions():
                 pdfItem.setAttribute('data-pdf-path', pdfPath);
                 
                 const statusClass = isIndexed ? 'bg-green-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700';
-                const buttonText = isIndexed ? '인덱싱 완료' : '인덱싱';
+                const buttonText = isIndexed ? '선택됨' : '선택';
                 const buttonDisabled = isIndexed ? 'disabled' : '';
                 
                 pdfItem.innerHTML = `

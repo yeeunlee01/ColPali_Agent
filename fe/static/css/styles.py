@@ -19,7 +19,12 @@ def get_styles():
         
         /* 사이드바 스타일 */
         #sidebar.collapsed {
-            width: 60px;
+            transform: translateX(-100%);
+        }
+        
+        /* 메인 콘텐츠 스타일 */
+        #mainContent.sidebar-collapsed {
+            margin-left: 0;
         }
         
         /* PDF 아이템 스타일 */

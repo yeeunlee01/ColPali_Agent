@@ -270,11 +270,11 @@ class AzureChatOpenAIManager:
             if not all([self.azure_deployment, self.azure_endpoint, self.api_key]):
                 missing = []
                 if not self.azure_deployment:
-                    missing.append("AZURE_DEPLOYMENT")
+                    missing.append("OPENAI_DEPLOYMENT")
                 if not self.azure_endpoint:
-                    missing.append("AZURE_ENDPOINT")
+                    missing.append("OPENAI_ENDPOINT")
                 if not self.api_key:
-                    missing.append("AZURE_API_KEY")
+                    missing.append("OPENAI_API_KEY")
                 
                 raise ValueError(f"필수 환경변수가 설정되지 않았습니다: {', '.join(missing)}")
             

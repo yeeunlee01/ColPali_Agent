@@ -37,11 +37,11 @@ class AzureConfig:
     """Azure OpenAI 설정"""
     
     def __init__(self):
-        self.azure_endpoint = os.getenv("AZURE_ENDPOINT")
-        self.azure_api_version = os.getenv("AZURE_API_VERSION", "2024-12-01-preview")
-        self.azure_api_key = os.getenv("AZURE_API_KEY")
-        self.azure_model = os.getenv("AZURE_MODEL", "gpt-4o")
-        self.azure_deployment = os.getenv("AZURE_DEPLOYMENT")
+        self.azure_endpoint = os.getenv("OPENAI_ENDPOINT")
+        self.azure_api_version = os.getenv("OPENAI_API_VERSION", "2024-12-01-preview")
+        self.azure_api_key = os.getenv("OPENAI_API_KEY")
+        self.azure_model = os.getenv("OPENAI_MODEL", "gpt-4o")
+        self.azure_deployment = os.getenv("OPENAI_DEPLOYMENT")
         self.n = 1
         self.temperature = 0
         self.max_tokens = 10000

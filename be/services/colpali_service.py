@@ -52,7 +52,7 @@ class ColPaliRAGService:
     def azure_llm(self):
         """Azure OpenAI LLM 반환"""
         return self.llm_manager.get_llm()
-    
+
     def process_pdf(self, pdf_file_path: str, progress_callback: Optional[Callable] = None, output_dir: str = None) -> Dict[str, Any]:
         """PDF 파일을 처리하고 인덱싱"""
         try:

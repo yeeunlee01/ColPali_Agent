@@ -23,18 +23,20 @@ def get_sidebar_template():
     </div>
 
     <!-- 진행 상황 섹션 -->
-    <div id="progressSection" class="hidden p-4 border-t border-gray-200 flex-shrink-0">
-        <div class="mb-2">
-            <div class="flex justify-between items-center mb-1">
-                <span class="text-sm font-medium text-gray-700">진행 상황</span>
-                <span id="progressPercentage" class="text-sm text-gray-600">0%</span>
+    <div id="progressSection" class="hidden p-4 border-t border-gray-200 flex-shrink-0 bg-blue-50 rounded-lg mx-4 mb-4">
+        <div class="mb-3">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-sm font-semibold text-blue-800">📊 인덱싱 진행 중</span>
+                <span id="progressPercentage" class="text-sm font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded-full">0%</span>
             </div>
-            <div class="w-full bg-gray-200 rounded-full h-2">
-                <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            <div class="w-full bg-blue-200 rounded-full h-3 shadow-inner">
+                <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500 shadow-sm" style="width: 0%"></div>
             </div>
         </div>
-        <div id="progressMessage" class="text-xs text-gray-600">준비 중...</div>
-        <div id="progressPages" class="text-xs text-gray-500 mt-1"></div>
+        <div class="space-y-1">
+            <div id="progressMessage" class="text-xs text-blue-700 font-medium">준비 중...</div>
+            <div id="progressPages" class="text-xs text-blue-600"></div>
+        </div>
     </div>
 
     <!-- 상태 메시지 -->

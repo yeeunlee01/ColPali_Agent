@@ -3,7 +3,6 @@
 def get_ui_functions():
     """모든 UI 조작 함수들 반환"""
     return """
-    <script>
         /**
          * 로딩 오버레이 표시/숨김
          */
@@ -12,6 +11,56 @@ def get_ui_functions():
             loading.classList.toggle('hidden', !show);
         }
         
+        /**
+         * Progress Bar 메시지 추가
+         */
+        function addProgressMessage() {
+            const chatMessages = document.getElementById('chatMessages');
+            
+            // 환영 메시지 제거
+            const welcomeMessage = chatMessages.querySelector('.text-center.py-12');
+            if (welcomeMessage) {
+                welcomeMessage.remove();
+            }
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message progress-message';
+            messageDiv.innerHTML = `
+                <div class="assistant-message p-4 rounded-lg max-w-3xl">
+                    <div class="p-4 border-t border-gray-200 flex-shrink-0 bg-blue-50 rounded-lg">
+                        <div class="mb-3">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-semibold text-blue-800">📊 인덱싱 진행 중</span>
+                                <span id="chatProgressPercentage" class="text-sm font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded-full">0%</span>
+                            </div>
+                            <div class="w-full bg-blue-200 rounded-full h-3 shadow-inner">
+                                <div id="chatProgressBar" class="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500 shadow-sm" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <div id="chatProgressMessage" class="text-xs text-blue-700 font-medium">PDF를 인덱싱하고 있습니다...</div>
+                            <div id="chatProgressPages" class="text-xs text-blue-600"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return messageDiv;
+        }
+
+        /**
+         * Progress Bar 메시지 제거
+         */
+        function removeProgressMessage() {
+            const progressMessage = document.querySelector('.progress-message');
+            if (progressMessage) {
+                progressMessage.remove();
+            }
+        }
+
         /**
          * 메시지 추가
          */
@@ -129,5 +178,4 @@ def get_ui_functions():
             element.classList.add('active');
             selectedPdfPath = element.getAttribute('data-pdf-path');
         }
-    </script>
     """

@@ -22,12 +22,52 @@ class HtmlTemplate:
         chat_content = get_chat_template()
         main_layout = get_main_layout(sidebar_content, chat_content)
         
-        # JavaScript 조합
-        javascript = '\n'.join([
-            get_api_functions(),
-            get_ui_functions(), 
-            get_event_handlers()
-        ])
+        # JavaScript 조합 (개별 스크립트 태그 방식)
+        javascript_parts = []
+        
+        # API 함수들을 개별 스크립트로
+        try:
+            api_js = get_api_functions().strip()
+            javascript_parts.append(f"""
+            <script>
+                console.log('API 함수 로드 시작');
+                {api_js}
+                console.log('API 함수 로드 완료');
+            </script>
+            """)
+        except Exception as e:
+            print(f"API JavaScript 로드 오류: {e}")
+            javascript_parts.append('<script>console.error("API JavaScript 로드 실패");</script>')
+        
+        # UI 함수들을 개별 스크립트로  
+        try:
+            ui_js = get_ui_functions().strip()
+            javascript_parts.append(f"""
+            <script>
+                console.log('UI 함수 로드 시작');
+                {ui_js}
+                console.log('UI 함수 로드 완료');
+            </script>
+            """)
+        except Exception as e:
+            print(f"UI JavaScript 로드 오류: {e}")
+            javascript_parts.append('<script>console.error("UI JavaScript 로드 실패");</script>')
+            
+        # 이벤트 핸들러들을 개별 스크립트로
+        try:
+            events_js = get_event_handlers().strip()
+            javascript_parts.append(f"""
+            <script>
+                console.log('이벤트 핸들러 로드 시작');
+                {events_js}
+                console.log('이벤트 핸들러 로드 완료');
+            </script>
+            """)
+        except Exception as e:
+            print(f"Events JavaScript 로드 오류: {e}")
+            javascript_parts.append('<script>console.error("Events JavaScript 로드 실패");</script>')
+            
+        javascript = '\n'.join(javascript_parts)
         
         # 기본 템플릿에 모든 내용 조합
         html = get_base_template("ColPali Agent", main_layout)

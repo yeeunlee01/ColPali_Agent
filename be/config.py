@@ -37,11 +37,11 @@ class AzureConfig:
     """Azure OpenAI 설정"""
     
     def __init__(self):
-        self.azure_endpoint = os.getenv("OPENAI_ENDPOINT")
-        self.azure_api_version = os.getenv("OPENAI_API_VERSION", "2024-12-01-preview")
-        self.azure_api_key = os.getenv("OPENAI_API_KEY")
-        self.azure_model = os.getenv("OPENAI_MODEL", "gpt-4o")
-        self.azure_deployment = os.getenv("OPENAI_DEPLOYMENT")
+        self.azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        self.azure_api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
+        self.azure_api_key = os.getenv("AZURE_OPENAI_API_KEY")
+        self.azure_model = os.getenv("AZURE_OPENAI_MODEL", "gpt-4o")
+        self.azure_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
         self.n = 1
         self.temperature = 0
         self.max_tokens = 10000
@@ -50,6 +50,20 @@ class AzureConfig:
 
 azure_config = AzureConfig()
 
+class OpenAIConfig:
+      """OpenAI API 설정"""
+
+      def __init__(self):
+          self.api_key = os.getenv("OPENAI_API_KEY")
+          self.model = os.getenv("OPENAI_MODEL", "gpt-5-nano-2025-08-07")
+          self.base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")  
+          self.n = 1
+          self.temperature = 0
+          self.max_tokens = 10000
+          self.streaming = False
+          self.verbose = True
+
+openai_config = OpenAIConfig()
 
 class Settings:
     """환경변수 기반 설정"""
